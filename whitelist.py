@@ -7,17 +7,19 @@ class Whitelist:
         self.whitelist = []
 
     def load(self, loader):
-        self.whitelist.append("https://www.google.com/")
-        self.whitelist.append("http://neverssl.com/")
+        self.whitelist.append("google.com")
+        self.whitelist.append("neverssl.com")
 
     def request(self, flow: http.HTTPFlow) -> None:
         #ctx.log.info("flow.request.url: {}".format(flow.request.url))
-        if flow.request.url not in self.whitelist:
-            ctx.log.info("flow.request.url: {}".format(flow.request.url))
-            flow.kill()
+        killSession = True
 
-        if flow.response or flow.error or (flow.reply and flow.reply.state == "taken"):
-            return
+        for domain in self.whitelist:
+            if flow.request.pretty_host.endswith(domain):
+                killSession = False
+
+        if killSession:
+            flow.kill()        
 
 addons = [
     Whitelist()
