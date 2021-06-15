@@ -2,7 +2,8 @@ from os import path
 from mitmproxy import ctx, http, net
 
 class Rule:
-    def __parseOperation(self, ruleString: str) -> str:
+    @staticmethod
+    def parseOperation(ruleString: str) -> str:
         operation = ruleString[0]
 
         if operation != '+' and operation != '-':
@@ -10,7 +11,8 @@ class Rule:
 
         return operation
 
-    def __parseDomain(self, ruleString: str) -> str:
+    @staticmethod
+    def parseDomain(ruleString: str) -> str:
         index = ruleString.find("/")
         domain = ruleString
         
@@ -22,7 +24,8 @@ class Rule:
 
         return domain
     
-    def __parsePath(self, ruleString) -> str:
+    @staticmethod
+    def parsePath(ruleString: str) -> str:
         index = ruleString.find("/")
 
         if index == -1:
@@ -30,18 +33,12 @@ class Rule:
         else:
             return ruleString[index:]
 
-    
-    def __parseRuleString(self, ruleString):
-        ruleString = ruleString.replace(" ", "").replace("http://", "").replace("https://", "")      
-        operation = self.__parseOperation(ruleString)
-        domains = self.__parseDomain(ruleString)
-        path = self.__parsePath(ruleString)
-
-        return operation, domains, path
-        
-        return 
     def __init__(self, ruleString):
-        self.operation, self.domain, self.path = self.__parseRuleString(ruleString)
+        ruleString = ruleString.replace(" ", "").replace("http://", "").replace("https://", "")
+
+        self.operation = self.parseOperation(ruleString)
+        self.domain = self.parseDomain(ruleString)
+        self.path = self.parsePath(ruleString)
 
     def __str__(self):
         return "Operation: {} Domain: {} Path: {}".format(self.operation, self.domain, self.path)
@@ -65,19 +62,21 @@ class Whitelist:
     def load(self, loader):
         self.loadRules()
     
-    def __checkDomainRule(self, reqDomain: str, domain: str) -> bool:
+    @staticmethod
+    def checkDomainRule(reqDomain: str, domain: str) -> bool:
         if reqDomain == domain:
             return True
         if reqDomain.endswith(domain) and reqDomain[:reqDomain.index(domain)][-1] == '.':
             return True
         return False
     
-    def __checkPathRule(self, reqPath: str, path: str) -> bool:
+    @staticmethod
+    def checkPathRule(reqPath: str, path: str) -> bool:
         if reqPath.startswith(path):
             return True
         return False
 
-    def __checkRequest(self, request: net.http.request.Request) -> bool:
+    def checkRequest(self, request: net.http.request.Request) -> bool:
         reqDomain = request.pretty_host
         reqPath = request.path
 
@@ -85,10 +84,10 @@ class Whitelist:
 
         for rule in self.rules:
             if rule.operation == '+':
-                if self.__checkDomainRule(reqDomain, rule.domain) and self.__checkPathRule(reqPath, rule.path):
+                if self.checkDomainRule(reqDomain, rule.domain) and self.checkPathRule(reqPath, rule.path):
                     admitted = True
             elif rule.operation == '-':
-                if self.__checkDomainRule(reqDomain, rule.domain) and self.__checkPathRule(reqPath, rule.path):
+                if self.checkDomainRule(reqDomain, rule.domain) and self.checkPathRule(reqPath, rule.path):
                     admitted = False
         
         return admitted
@@ -99,7 +98,7 @@ class Whitelist:
             flow.request.path)
         )
 
-        if not self.__checkRequest(flow.request):
+        if not self.checkRequest(flow.request):
             ctx.log.info("{} ADMITTED".format(flow.request.pretty_url))
             if (path.exists(self.DEFAULT_CONTENT_FILE)):
                 with open(self.DEFAULT_CONTENT_FILE) as blockhtml:
