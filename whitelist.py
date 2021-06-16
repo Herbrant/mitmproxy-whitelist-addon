@@ -90,6 +90,19 @@ class Whitelist:
         
         return admitted
 
+    def __errorPage(self, flow: http.HTTPFlow) -> None:
+        if (path.exists(self.DEFAULT_CONTENT_FILE)):
+                with open(self.DEFAULT_CONTENT_FILE) as blockhtml:
+                    content = blockhtml.read()
+        else:
+            content = "<html><h1>BLOCKED</h1></html>"
+
+        flow.response = http.HTTPResponse.make(
+            200,
+            content,
+            {"Content-Type": "text/html"}
+        )
+
     def request(self, flow: http.HTTPFlow) -> None:
         ctx.log.info("[REQUEST] TYPE: {} DOMAIN: {} URL: {}".format(
             flow.request.method, flow.request.pretty_host, flow.request.pretty_url,
@@ -97,31 +110,10 @@ class Whitelist:
         )
 
         if not self.checkRequest(flow.request):
-            ctx.log.info("{} ADMITTED".format(flow.request.pretty_url))
-            if (path.exists(self.DEFAULT_CONTENT_FILE)):
-                with open(self.DEFAULT_CONTENT_FILE) as blockhtml:
-                    content = blockhtml.read()
-            else:
-                content = "<html><h1>BLOCKED</h1></html>"
-            flow.response = net.http.Response.make(
-                200,
-                content,
-                {"Content-Type": "text/html"}
-            )
-
+            self.__errorPage(flow)
     
     def error(self, flow: http.HTTPFlow) -> None:
-        if (path.exists(self.DEFAULT_CONTENT_FILE)):
-                with open(self.DEFAULT_CONTENT_FILE) as blockhtml:
-                    content = blockhtml.read()
-        else:
-            content = "<html><h1>BLOCKED</h1></html>"
-        
-        flow.response = net.http.Response.make(
-            200,
-            content,
-            {"Content-Type": "text/html"}
-        )
+        self.__errorPage(flow)
 
 addons = [
     Whitelist()
