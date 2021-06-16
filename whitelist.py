@@ -49,6 +49,7 @@ class Whitelist:
 
     def __init__(self):
         self.rules = []
+        self.allowAll = False
     
     def loadRules(self):
         with open(self.RULES_CONFIGURATION_FILE) as rules:
@@ -56,8 +57,18 @@ class Whitelist:
         
         for rule in rules_text:
             newRule = Rule(rule)
-            ctx.log.info(newRule)
-            self.rules.append(newRule)
+
+            if newRule.domain == "*":
+                self.allowAll = True
+                ctx.log.info("MODE: Allow all requests")
+                return
+            else:
+                self.rules.append(newRule)
+        
+        for rule in self.rules:
+            ctx.log.info(rule)
+            
+
     
     def load(self, loader):
         self.loadRules()
@@ -75,6 +86,9 @@ class Whitelist:
         return False
 
     def checkRequest(self, request: net.http.request.Request) -> bool:
+        if self.allowAll:
+            return True
+
         reqDomain = request.pretty_host
         reqPath = request.path
 
