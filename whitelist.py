@@ -66,8 +66,6 @@ class Whitelist:
     def checkDomainRule(reqDomain: str, domain: str) -> bool:
         if reqDomain == domain:
             return True
-        if reqDomain.endswith(domain) and reqDomain[:reqDomain.index(domain)][-1] == '.':
-            return True
         return False
     
     @staticmethod
