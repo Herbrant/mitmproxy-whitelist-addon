@@ -1,5 +1,6 @@
-from os import path
+import os
 from mitmproxy import ctx, http, net
+from datetime import datetime
 
 class Rule:
     @staticmethod
@@ -46,6 +47,7 @@ class Rule:
 class Whitelist:
     RULES_CONFIGURATION_FILE="/usr/local/mitmproxy/whitelist/rules"
     DEFAULT_CONTENT_FILE="/usr/local/mitmproxy/whitelist/block.html"
+    LOG_FOLDER=os.path.expanduser("~") + "/.mitmproxy/"
 
     def __init__(self):
         self.rules = []
@@ -105,7 +107,7 @@ class Whitelist:
         return admitted
 
     def __errorPage(self, flow: http.HTTPFlow) -> None:
-        if (path.exists(self.DEFAULT_CONTENT_FILE)):
+        if os.path.exists(self.DEFAULT_CONTENT_FILE):
                 with open(self.DEFAULT_CONTENT_FILE) as blockhtml:
                     content = blockhtml.read()
         else:
@@ -116,12 +118,24 @@ class Whitelist:
             content,
             {"Content-Type": "text/html"}
         )
+    
+    def __logRequest(self, request: net.http.request.Request) -> None:
+        currentTime = datetime.now().strftime("%D %H:%M:%S")
+
+        logtext = "[{}] TYPE: {} URL: {}".format(currentTime, request.method, request.pretty_url)
+        ctx.log.info(logtext)
+
+        if not os.path.exists(self.LOG_FOLDER):
+            os.makedirs(self.LOG_FOLDER)
+
+        logPath = self.LOG_FOLDER + "log"
+
+        with open(logPath, "a+") as logfile:
+            logfile.write(logtext)
+
 
     def request(self, flow: http.HTTPFlow) -> None:
-        ctx.log.info("[REQUEST] TYPE: {} DOMAIN: {} URL: {}".format(
-            flow.request.method, flow.request.pretty_host, flow.request.pretty_url,
-            flow.request.path)
-        )
+        self.__logRequest(flow.request)
 
         if not self.checkRequest(flow.request):
             self.__errorPage(flow)
