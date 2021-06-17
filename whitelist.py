@@ -122,7 +122,7 @@ class Whitelist:
     def __logRequest(self, request: net.http.request.Request) -> None:
         currentTime = datetime.now().strftime("%D %H:%M:%S")
 
-        logtext = "[{}] TYPE: {} URL: {}".format(currentTime, request.method, request.pretty_url)
+        logtext = "[{}] TYPE: {} URL: {}\n".format(currentTime, request.method, request.pretty_url)
         ctx.log.info(logtext)
 
         if not os.path.exists(self.LOG_FOLDER):
