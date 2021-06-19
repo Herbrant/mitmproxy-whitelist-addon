@@ -46,13 +46,13 @@ class Rule:
 
 class Whitelist:
     CONFIG_FILE="/usr/local/mitmproxy/whitelist/config.json"
-    DEFAULT_CONTENT_FILE="/usr/local/mitmproxy/whitelist/block.html"
     LOG_FOLDER=os.path.expanduser("~") + "/.mitmproxy/"
 
     def __init__(self):
         self.rules = []
         self.redirectUrl = ""
         self.allowAll = False
+        self.errorPageBody = "<h1>BLOCKED</h1>"
     
     def loadRules(self, jsonRules) -> None:
         for rule in jsonRules:
@@ -78,6 +78,9 @@ class Whitelist:
         
         if 'rules' in data:
             self.loadRules(data['rules'])
+
+        if 'errorpage_body' in data:
+            self.errorPageBody = data['errorpage_body']
 
     
     def load(self, loader):
@@ -120,11 +123,7 @@ class Whitelist:
             flow.request.url = self.redirectUrl
             return
             
-        if os.path.exists(self.DEFAULT_CONTENT_FILE):
-                with open(self.DEFAULT_CONTENT_FILE) as blockhtml:
-                    content = blockhtml.read()
-        else:
-            content = "<html><h1>BLOCKED</h1></html>"
+        content = "<html>" + self.errorPageBody +"</html>"
 
         flow.response = http.HTTPResponse.make(
             200,
