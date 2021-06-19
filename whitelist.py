@@ -1,4 +1,4 @@
-import os
+import os, json
 from mitmproxy import ctx, http, net
 from datetime import datetime
 
@@ -45,19 +45,17 @@ class Rule:
         return "Operation: {} Domain: {} Path: {}".format(self.operation, self.domain, self.path)
 
 class Whitelist:
-    RULES_CONFIGURATION_FILE="/usr/local/mitmproxy/whitelist/rules"
+    CONFIG_FILE="/usr/local/mitmproxy/whitelist/config.json"
     DEFAULT_CONTENT_FILE="/usr/local/mitmproxy/whitelist/block.html"
     LOG_FOLDER=os.path.expanduser("~") + "/.mitmproxy/"
 
     def __init__(self):
         self.rules = []
+        self.redirectUrl = ""
         self.allowAll = False
     
-    def loadRules(self):
-        with open(self.RULES_CONFIGURATION_FILE) as rules:
-            rules_text = list(filter(None, rules.read().split('\n')))
-        
-        for rule in rules_text:
+    def loadRules(self, jsonRules) -> None:
+        for rule in jsonRules:
             newRule = Rule(rule)
 
             if newRule.domain == "*":
@@ -69,11 +67,21 @@ class Whitelist:
         
         for rule in self.rules:
             ctx.log.info(rule)
-            
+    
+    def loadConfig(self):
+        with open(self.CONFIG_FILE) as config:
+            data = json.load(config)
+        
+        if 'redirect_url' in data:
+            self.redirectUrl = data['redirect_url']
+            ctx.log.info("redirect url: {}".format(self.redirectUrl))
+        
+        if 'rules' in data:
+            self.loadRules(data['rules'])
 
     
     def load(self, loader):
-        self.loadRules()
+        self.loadConfig()
     
     @staticmethod
     def checkDomainRule(reqDomain: str, domain: str) -> bool:
@@ -106,7 +114,12 @@ class Whitelist:
         
         return admitted
 
-    def __errorPage(self, flow: http.HTTPFlow) -> None:
+
+    def __blockRequest(self, flow: http.HTTPFlow) -> None:
+        if self.redirectUrl != '':
+            flow.request.url = self.redirectUrl
+            return
+            
         if os.path.exists(self.DEFAULT_CONTENT_FILE):
                 with open(self.DEFAULT_CONTENT_FILE) as blockhtml:
                     content = blockhtml.read()
@@ -138,10 +151,10 @@ class Whitelist:
         self.__logRequest(flow.request)
 
         if not self.checkRequest(flow.request):
-            self.__errorPage(flow)
+            self.__blockRequest(flow)
     
     def error(self, flow: http.HTTPFlow) -> None:
-        self.__errorPage(flow)
+        self.__blockRequest(flow)
 
 addons = [
     Whitelist()
