@@ -121,7 +121,7 @@ class Whitelist:
     def __blockRequest(self, flow: http.HTTPFlow) -> None:
         if self.redirectUrl != '':
             flow.request.url = self.redirectUrl
-            flow.request.url = Rule.parseDomain(self.redirectUrl)
+            flow.request.host = Rule.parseDomain(self.redirectUrl)
             return
             
         content = "<html>" + self.errorPageBody +"</html>"
